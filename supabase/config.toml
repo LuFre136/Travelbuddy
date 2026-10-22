@@ -190,6 +190,12 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
+# Anmeldemail mit 6-stelligem Code (für die installierte App auf dem iPhone).
+# Im gehosteten Projekt denselben Inhalt unter Authentication → Email Templates → Magic Link einfügen.
+[auth.email.template.magic_link]
+subject = "Dein Travelbuddy-Anmeldecode"
+content_path = "./supabase/templates/magic_link.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"

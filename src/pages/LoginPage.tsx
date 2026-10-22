@@ -15,6 +15,7 @@ export function LoginPage() {
   const next = safeNext(params.get('next'))
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
+  const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -35,6 +36,17 @@ export function LoginPage() {
     else setSent(true)
   }
 
+  // Auf dem iPhone hat die installierte App einen eigenen Speicher, getrennt von Safari.
+  // Der Link aus der Mail würde nur Safari anmelden, deshalb gibt es zusätzlich den Code.
+  async function verifyCode(event: FormEvent) {
+    event.preventDefault()
+    setBusy(true)
+    setError(null)
+    const { error } = await requireSupabase().auth.verifyOtp({ email, token: code.trim(), type: 'email' })
+    setBusy(false)
+    if (error) setError('Der Code ist falsch oder abgelaufen. Fordere bei Bedarf einen neuen an.')
+  }
+
   async function signInWithGoogle() {
     setError(null)
     const { error } = await requireSupabase().auth.signInWithOAuth({
@@ -52,9 +64,39 @@ export function LoginPage() {
       </div>
 
       {sent ? (
-        <p className="rounded-lg bg-brand-50 p-4 text-sm text-brand-800 dark:bg-brand-800/30 dark:text-brand-100">
-          Wir haben dir einen Anmeldelink an <strong>{email}</strong> geschickt. Öffne ihn auf diesem Gerät.
-        </p>
+        <form onSubmit={verifyCode} className="space-y-3">
+          <p className="rounded-lg bg-brand-50 p-4 text-sm text-brand-800 dark:bg-brand-800/30 dark:text-brand-100">
+            Wir haben dir eine Mail an <strong>{email}</strong> geschickt. Gib den Code daraus hier ein oder öffne den
+            Link auf diesem Gerät.
+          </p>
+          <label htmlFor="code" className="block text-sm font-medium">
+            Code aus der Mail
+          </label>
+          <Input
+            id="code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]{6,10}"
+            required
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+            placeholder="123456"
+            className="text-center font-mono text-lg tracking-[0.3em]"
+          />
+          <Button type="submit" disabled={busy || code.length < 6} className="w-full">
+            {busy ? 'Wird geprüft …' : 'Anmelden'}
+          </Button>
+          <button
+            type="button"
+            onClick={() => {
+              setSent(false)
+              setCode('')
+            }}
+            className="w-full text-sm text-slate-600 hover:underline dark:text-slate-400"
+          >
+            Andere E-Mail oder neuen Code anfordern
+          </button>
+        </form>
       ) : (
         <form onSubmit={sendMagicLink} className="space-y-3">
           <label htmlFor="email" className="block text-sm font-medium">
@@ -70,7 +112,7 @@ export function LoginPage() {
             placeholder="du@beispiel.de"
           />
           <Button type="submit" disabled={busy} className="w-full">
-            {busy ? 'Wird gesendet …' : 'Anmeldelink senden'}
+            {busy ? 'Wird gesendet …' : 'Code per Mail senden'}
           </Button>
         </form>
       )}
