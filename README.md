@@ -39,7 +39,10 @@ Die Regeln sind in der Datenbank erzwungen (RLS), nicht nur in der Oberfläche.
 3. **Authentication → URL Configuration:** Site URL auf die spätere App-Adresse setzen (z. B.
    `https://travelbuddy.onrender.com`, die genaue Adresse zeigt Render nach dem ersten Deploy) und unter Redirect
    URLs `http://localhost:5173/**` sowie `https://travelbuddy.onrender.com/**` eintragen.
-4. Optional **Authentication → Providers → Google** aktivieren (braucht eine OAuth-Client-ID aus der Google Cloud
+4. **Authentication → Email Templates → Magic Link:** Betreff `Dein Travelbuddy-Anmeldecode` und als Inhalt den Text
+   aus `supabase/templates/magic_link.html` einfügen. Erst dann enthält die Mail den 6-stelligen Code, den man in der
+   installierten App auf dem iPhone eintippt (dort funktioniert der Link nicht, weil er Safari öffnet).
+5. Optional **Authentication → Providers → Google** aktivieren (braucht eine OAuth-Client-ID aus der Google Cloud
    Console). Ohne Google funktioniert der Magic Link trotzdem.
 
 ### 2. Lokal starten
