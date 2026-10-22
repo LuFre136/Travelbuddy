@@ -164,3 +164,39 @@ select public.transfer_host('aaaaaaaa-0000-0000-0000-000000000001', '22222222-22
 select tests.expect(public.trip_role_of('aaaaaaaa-0000-0000-0000-000000000001') = 'guide', 'Alter Host wird Guide');
 reset role;
 select tests.expect((select role from public.trip_members where user_id = '22222222-2222-2222-2222-222222222222') = 'host', 'Neuer Host');
+
+-- save_transfer: Guide speichert Transfer mit Wegpunkten atomar, Buddy darf es nicht
+reset role;
+insert into public.places (id, trip_id, name, created_by) values
+  ('bbbbbbbb-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'Lissabon Santa Apolónia', '11111111-1111-1111-1111-111111111111'),
+  ('bbbbbbbb-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', 'Porto Campanhã', '11111111-1111-1111-1111-111111111111');
+
+select tests.login('11111111-1111-1111-1111-111111111111');
+set role authenticated;
+select tests.expect(
+  public.save_transfer(
+    '{"id": "eeeeeeee-0000-0000-0000-000000000002", "trip_id": "aaaaaaaa-0000-0000-0000-000000000001", "mode": "train", "title": "Alfa Pendular"}',
+    '[{"place_id": "bbbbbbbb-0000-0000-0000-000000000002"}, {"place_id": "bbbbbbbb-0000-0000-0000-000000000001"}, {"place_id": "bbbbbbbb-0000-0000-0000-000000000003"}]'
+  ) = 'eeeeeeee-0000-0000-0000-000000000002', 'save_transfer legt an');
+select tests.expect((select count(*) from public.transfer_waypoints where transfer_id = 'eeeeeeee-0000-0000-0000-000000000002') = 3, 'Drei Wegpunkte');
+
+-- Reihenfolge ändern und einen Wegpunkt entfernen
+select public.save_transfer(
+  '{"id": "eeeeeeee-0000-0000-0000-000000000002", "trip_id": "aaaaaaaa-0000-0000-0000-000000000001", "mode": "bus", "title": "Rede Expressos"}',
+  '[{"place_id": "bbbbbbbb-0000-0000-0000-000000000003"}, {"place_id": "bbbbbbbb-0000-0000-0000-000000000002"}]'
+);
+select tests.expect((select mode from public.transfers where id = 'eeeeeeee-0000-0000-0000-000000000002') = 'bus', 'Transfer aktualisiert');
+select tests.expect(
+  (select array_agg(place_id order by position) from public.transfer_waypoints where transfer_id = 'eeeeeeee-0000-0000-0000-000000000002')
+  = array['bbbbbbbb-0000-0000-0000-000000000003', 'bbbbbbbb-0000-0000-0000-000000000002']::uuid[],
+  'Neue Reihenfolge');
+
+reset role;
+select tests.login('33333333-3333-3333-3333-333333333333');
+set role authenticated;
+select tests.expect_error($$select public.save_transfer('{"trip_id": "aaaaaaaa-0000-0000-0000-000000000001", "mode": "car"}', '[]')$$,
+  'Buddy legt per save_transfer an');
+select tests.expect_error($$select public.save_transfer('{"id": "eeeeeeee-0000-0000-0000-000000000002", "trip_id": "aaaaaaaa-0000-0000-0000-000000000001", "mode": "car"}', '[]')$$,
+  'Buddy ändert per save_transfer');
+reset role;
+select tests.expect((select count(*) from public.transfer_waypoints where transfer_id = 'eeeeeeee-0000-0000-0000-000000000002') = 2, 'Buddy hat Wegpunkte nicht gelöscht');

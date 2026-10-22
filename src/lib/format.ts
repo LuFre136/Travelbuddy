@@ -16,3 +16,44 @@ export function formatDateRange(start: string | null, end: string | null): strin
 export function inviteUrl(origin: string, token: string): string {
   return `${origin.replace(/\/$/, '')}/join/${encodeURIComponent(token)}`
 }
+
+const dateTimeFormat = new Intl.DateTimeFormat('de-DE', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
+export function formatDateTime(iso: string | null): string | null {
+  return iso ? dateTimeFormat.format(new Date(iso)) : null
+}
+
+export function parseCost(value: string): number | null {
+  const normalized = value.replace(',', '.').trim()
+  if (!normalized) return null
+  const n = Number(normalized)
+  return Number.isFinite(n) ? n : null
+}
+
+const money = new Map<string, Intl.NumberFormat>()
+
+export function formatCost(cost: number | null, currency: string | null): string | null {
+  if (cost === null) return null
+  const code = currency ?? 'EUR'
+  let format = money.get(code)
+  if (!format) {
+    try {
+      format = new Intl.NumberFormat('de-DE', { style: 'currency', currency: code })
+    } catch {
+      format = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2 })
+    }
+    money.set(code, format)
+  }
+  return format.format(cost)
+}
+
+export function emptyToNull(value: string): string | null {
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}

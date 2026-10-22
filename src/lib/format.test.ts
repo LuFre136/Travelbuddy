@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDateRange, inviteUrl } from './format'
+import { formatCost, formatDateRange, inviteUrl, parseCost } from './format'
 import { canEditPlan } from './types'
 
 describe('formatDateRange', () => {
@@ -28,5 +28,19 @@ describe('canEditPlan', () => {
     expect(canEditPlan('guide')).toBe(true)
     expect(canEditPlan('buddy')).toBe(false)
     expect(canEditPlan(null)).toBe(false)
+  })
+})
+
+describe('Kosten', () => {
+  it('liest Komma und Punkt', () => {
+    expect(parseCost('12,50')).toBe(12.5)
+    expect(parseCost('12.50')).toBe(12.5)
+    expect(parseCost('')).toBeNull()
+    expect(parseCost('abc')).toBeNull()
+  })
+
+  it('formatiert in der Währung', () => {
+    expect(formatCost(12.5, 'EUR')).toMatch(/12,50\s€/)
+    expect(formatCost(null, 'EUR')).toBeNull()
   })
 })
