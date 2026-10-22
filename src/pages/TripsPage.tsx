@@ -39,17 +39,18 @@ export function TripsPage() {
     event.preventDefault()
     setBusy(true)
     setError(null)
-    const { data, error } = await requireSupabase()
+    // Ohne .select(): Postgres prüft beim Zurücklesen die Lese-Regel, bevor der
+    // Trigger den Ersteller als Host einträgt. Die ID erzeugen wir deshalb selbst.
+    const id = crypto.randomUUID()
+    const { error } = await requireSupabase()
       .from('trips')
-      .insert({ title: title.trim(), start_date: startDate || null, end_date: endDate || null })
-      .select('id')
-      .single()
+      .insert({ id, title: title.trim(), start_date: startDate || null, end_date: endDate || null })
     setBusy(false)
     if (error) {
       setError(error.message)
       return
     }
-    navigate(`/trips/${data.id}`)
+    navigate(`/trips/${id}`)
   }
 
   return (
