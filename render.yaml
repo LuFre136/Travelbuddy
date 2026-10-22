@@ -1,0 +1,25 @@
+# Render Blueprint: statische Seite, baut bei jedem Push auf main neu.
+services:
+  - type: web
+    name: travelbuddy
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Werte aus Supabase → Project Settings → API; werden beim Anlegen abgefragt.
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+    routes:
+      # Alle App-Pfade (z. B. /join/<token>) liefern die App aus.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      # Service Worker nie cachen, damit Updates sofort ankommen.
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
