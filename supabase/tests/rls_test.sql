@@ -46,6 +46,11 @@ set role authenticated;
 insert into public.trips (id, title) values ('aaaaaaaa-0000-0000-0000-000000000001', 'Portugal 2027');
 select tests.expect(public.trip_role_of('aaaaaaaa-0000-0000-0000-000000000001') = 'host', 'Ersteller wird Host');
 
+-- insert ... returning scheitert, weil die Lese-Regel vor dem Host-Trigger greift.
+-- Die App legt Reisen deshalb mit selbst erzeugter ID und ohne returning an.
+select tests.expect_error($$insert into public.trips (title) values ('Mit Returning') returning id$$,
+  'insert returning auf trips (App darf das nicht verwenden)');
+
 insert into public.invites (trip_id, token, role) values
   ('aaaaaaaa-0000-0000-0000-000000000001', 'tok-guide', 'guide'),
   ('aaaaaaaa-0000-0000-0000-000000000001', 'tok-buddy', 'buddy');
