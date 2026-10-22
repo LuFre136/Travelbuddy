@@ -1,4 +1,10 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes } from 'react'
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from 'react'
 
 export function Button({ className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
@@ -33,5 +39,55 @@ export function ErrorText({ children }: { children: string | null }) {
     <p role="alert" className="text-sm text-red-700 dark:text-red-400">
       {children}
     </p>
+  )
+}
+
+export function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0 space-y-1">
+      <label htmlFor={htmlFor} className="block text-sm font-medium">
+        {label}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      className={`w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100 dark:border-slate-700 dark:bg-slate-900 ${className}`}
+    />
+  )
+}
+
+export function Textarea({ className = '', ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      rows={3}
+      {...props}
+      className={`w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-100 dark:border-slate-700 dark:bg-slate-900 ${className}`}
+    />
+  )
+}
+
+export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <div
+      className={`rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 ${className}`}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function TextButton({ className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className={`text-sm text-brand-700 hover:underline disabled:opacity-50 dark:text-brand-100 ${className}`}
+    />
   )
 }
