@@ -1,0 +1,22 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-50: #e9f4f0;
+  --color-brand-100: #dceee8;
+  --color-brand-600: #0e6b58;
+  --color-brand-700: #0b5747;
+  --color-brand-800: #08443a;
+}
+
+html {
+  background: #f4f7f6;
+  color: #15211e;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    background: #0f1614;
+    color: #e4ece9;
+    color-scheme: dark;
+  }
+}
