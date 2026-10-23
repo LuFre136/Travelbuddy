@@ -11,7 +11,16 @@ export interface DayRange {
 }
 
 /** Kalender zum Auswählen von „von“ und „bis“. Erster Klick = Anreise, zweiter = Abreise. */
-export function DateRangePicker({ value, onChange }: { value: DayRange; onChange: (range: DayRange) => void }) {
+export function DateRangePicker({
+  value,
+  onChange,
+  defaultMonth,
+}: {
+  value: DayRange
+  onChange: (range: DayRange) => void
+  /** Monat, der ohne Auswahl angezeigt wird, z. B. der Reisebeginn. */
+  defaultMonth?: string | null
+}) {
   const [open, setOpen] = useState(!value.start)
   const selected: DateRange | undefined = value.start
     ? { from: dayKeyToDate(value.start), to: dayKeyToDate(value.end) }
@@ -43,7 +52,7 @@ export function DateRangePicker({ value, onChange }: { value: DayRange; onChange
           mode="range"
           locale={de}
           weekStartsOn={1}
-          defaultMonth={selected?.from}
+          defaultMonth={selected?.from ?? dayKeyToDate(defaultMonth ?? null)}
           selected={selected}
           onSelect={(range) => onChange({ start: dateToDayKey(range?.from), end: dateToDayKey(range?.to) })}
           className="tb-calendar rounded-xl border border-slate-200 p-3 dark:border-slate-800"

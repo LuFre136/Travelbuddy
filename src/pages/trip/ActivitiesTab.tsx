@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { PlacePicker } from '../../components/PlacePicker'
+import { StageField } from '../../components/StageField'
 import { Button, Card, ErrorText, Field, Input, SecondaryButton, Textarea, TextButton } from '../../components/ui'
 import { formatDay, formatTime } from '../../lib/datetime'
 import type { PlaceInput } from '../../lib/places'
@@ -9,10 +10,12 @@ import {
   saveActivity,
   type Activity,
   type ActivityStatus,
+  type Stage,
   type Place,
 } from '../../lib/plan'
 import { emptyToNull, formatCost, parseCost } from '../../lib/format'
-import { DeleteButton, EmptyState, type TabProps } from './shared'
+import { DeleteButton, EmptyState, StageBadge, type TabProps } from './shared'
+import { stageOf } from '../../lib/stages'
 
 export function ActivityStatusPill({ status }: { status: ActivityStatus }) {
   const style =
@@ -58,13 +61,21 @@ export function ActivitiesTab({ trip, plan, canEdit, reload }: TabProps) {
           ))}
         </div>
       </div>
-      {editing === 'new' && <ActivityForm tripId={trip.id} onDone={done} />}
+      {editing === 'new' && (
+        <ActivityForm tripId={trip.id} stages={plan.stages} tripStart={trip.start_date} onDone={done} />
+      )}
       {activities.length === 0 && editing === null && <EmptyState>Keine Aktivitäten in dieser Ansicht.</EmptyState>}
       <ul className="space-y-3">
         {activities.map((activity) =>
           editing !== 'new' && editing?.id === activity.id ? (
             <li key={activity.id}>
-              <ActivityForm tripId={trip.id} activity={activity} onDone={done} />
+              <ActivityForm
+                tripId={trip.id}
+                activity={activity}
+                stages={plan.stages}
+                tripStart={trip.start_date}
+                onDone={done}
+              />
             </li>
           ) : (
             <li key={activity.id}>
@@ -72,6 +83,7 @@ export function ActivitiesTab({ trip, plan, canEdit, reload }: TabProps) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="font-medium">{activity.title}</h3>
+                    <StageBadge stage={stageOf(plan.stages, activity, activity.date)} />
                     <p className="text-sm text-slate-500">
                       {[
                         activity.date ? formatDay(activity.date) : 'Ohne Datum',
@@ -115,16 +127,21 @@ export function ActivitiesTab({ trip, plan, canEdit, reload }: TabProps) {
 function ActivityForm({
   tripId,
   activity,
+  stages,
+  tripStart,
   onDone,
 }: {
   tripId: string
   activity?: Activity
+  stages: Stage[]
+  tripStart: string | null
   onDone: (saved: boolean) => Promise<void>
 }) {
   const [title, setTitle] = useState(activity?.title ?? '')
   const [status, setStatus] = useState<ActivityStatus>(activity?.status ?? 'optional')
   const [place, setPlace] = useState<PlaceInput | Place | null>(activity?.place ?? null)
   const [date, setDate] = useState(activity?.date ?? '')
+  const [stageId, setStageId] = useState(activity?.stage_id ?? null)
   const [start, setStart] = useState(formatTime(activity?.start_time ?? null) ?? '')
   const [end, setEnd] = useState(formatTime(activity?.end_time ?? null) ?? '')
   const [cost, setCost] = useState(activity?.cost?.toString() ?? '')
@@ -143,6 +160,7 @@ function ActivityForm({
         tripId,
         activity?.id ?? null,
         {
+          stage_id: stageId,
           title: title.trim() || place?.name || 'Aktivität',
           status,
           date: date || null,
@@ -198,6 +216,19 @@ function ActivityForm({
             <PlacePicker id={`${prefix}-act-place`} value={place} onChange={setPlace} />
           </Field>
         </div>
+        {stages.length > 0 && (
+          <div className="sm:col-span-2">
+            <StageField
+              id={`${prefix}-act-stage`}
+              stages={stages}
+              tripStart={tripStart}
+              stageId={stageId}
+              day={date || null}
+              onStage={setStageId}
+              onDay={setDate}
+            />
+          </div>
+        )}
         <Field label="Datum" htmlFor={`${prefix}-act-date`}>
           <Input id={`${prefix}-act-date`} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>

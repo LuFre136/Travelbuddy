@@ -212,3 +212,33 @@ select tests.expect_error($$select public.save_transfer('{"id": "eeeeeeee-0000-0
   'Buddy ändert per save_transfer');
 reset role;
 select tests.expect((select count(*) from public.transfer_waypoints where transfer_id = 'eeeeeeee-0000-0000-0000-000000000002') = 2, 'Buddy hat Wegpunkte nicht gelöscht');
+
+-- Etappen: Guide legt an, Buddy liest nur; Zuordnung nur innerhalb derselben Reise
+reset role;
+select tests.login('11111111-1111-1111-1111-111111111111');
+set role authenticated;
+insert into public.stages (id, trip_id, name, color, start_day, end_day) values
+  ('cccccccc-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Lissabon', '#c2410c', '2027-05-01', '2027-05-03');
+select public.save_transfer(
+  '{"id": "eeeeeeee-0000-0000-0000-000000000002", "trip_id": "aaaaaaaa-0000-0000-0000-000000000001", "stage_id": "cccccccc-0000-0000-0000-000000000001", "mode": "bus"}',
+  '[]'
+);
+select tests.expect((select stage_id from public.transfers where id = 'eeeeeeee-0000-0000-0000-000000000002') = 'cccccccc-0000-0000-0000-000000000001', 'Transfer mit Etappe');
+select tests.expect_error($$insert into public.stages (trip_id, name, color) values ('aaaaaaaa-0000-0000-0000-000000000001', 'X', 'red')$$,
+  'Ungültige Farbe');
+reset role;
+select tests.login('33333333-3333-3333-3333-333333333333');
+set role authenticated;
+select tests.expect((select count(*) from public.stages where trip_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 1, 'Buddy sieht Etappen');
+select tests.expect_error($$insert into public.stages (trip_id, name) values ('aaaaaaaa-0000-0000-0000-000000000001', 'Buddy')$$,
+  'Buddy legt Etappe an');
+update public.stages set name = 'Gehackt' where id = 'cccccccc-0000-0000-0000-000000000001';
+reset role;
+select tests.expect((select name from public.stages where id = 'cccccccc-0000-0000-0000-000000000001') = 'Lissabon', 'Buddy ändert Etappe nicht');
+-- Fremde Reise: Etappe einer anderen Reise darf nicht zugeordnet werden
+insert into public.trips (id, title, created_by) values ('aaaaaaaa-0000-0000-0000-000000000009', 'Andere Reise', '22222222-2222-2222-2222-222222222222');
+select tests.expect_error($$insert into public.activities (trip_id, stage_id, title, created_by) values ('aaaaaaaa-0000-0000-0000-000000000009', 'cccccccc-0000-0000-0000-000000000001', 'X', '22222222-2222-2222-2222-222222222222')$$,
+  'Etappe einer anderen Reise zuordnen');
+-- Etappe löschen lässt Einträge stehen und entfernt nur die Zuordnung
+delete from public.stages where id = 'cccccccc-0000-0000-0000-000000000001';
+select tests.expect((select stage_id is null from public.transfers where id = 'eeeeeeee-0000-0000-0000-000000000002'), 'Zuordnung entfernt, Transfer bleibt');
