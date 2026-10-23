@@ -31,6 +31,10 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    // MapLibre wird nur für die Karte nachgeladen und ist allein ca. 1 MB groß.
+    chunkSizeWarningLimit: 1200,
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
