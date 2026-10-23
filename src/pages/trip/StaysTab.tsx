@@ -1,12 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import { PlacePicker } from '../../components/PlacePicker'
 import { Button, Card, ErrorText, Field, Input, SecondaryButton, Textarea, TextButton } from '../../components/ui'
-import { fromDateTimeInput, toDateTimeInput } from '../../lib/datetime'
+import { StageField } from '../../components/StageField'
+import { addDays, fromDateTimeInput, localDayKey, toDateTimeInput } from '../../lib/datetime'
 
 import type { PlaceInput } from '../../lib/places'
-import { deleteRow, saveStay, type Place, type Stay } from '../../lib/plan'
+import { deleteRow, saveStay, type Place, type Stage, type Stay } from '../../lib/plan'
 import { emptyToNull, formatCost, formatDateTime, parseCost } from '../../lib/format'
-import { DeleteButton, EmptyState, type TabProps } from './shared'
+import { DeleteButton, EmptyState, StageBadge, type TabProps } from './shared'
+import { stageOf } from '../../lib/stages'
 
 export function StaysTab({ trip, plan, canEdit, reload }: TabProps) {
   const [editing, setEditing] = useState<Stay | 'new' | null>(null)
@@ -18,6 +20,7 @@ export function StaysTab({ trip, plan, canEdit, reload }: TabProps) {
         <StayForm
           tripId={trip.id}
           defaultDate={trip.start_date}
+          stages={plan.stages}
           onDone={async (saved) => {
             setEditing(null)
             if (saved) await reload()
@@ -31,6 +34,7 @@ export function StaysTab({ trip, plan, canEdit, reload }: TabProps) {
             <li key={stay.id}>
               <StayForm
                 tripId={trip.id}
+                stages={plan.stages}
                 stay={stay}
                 defaultDate={trip.start_date}
                 onDone={async (saved) => {
@@ -45,6 +49,7 @@ export function StaysTab({ trip, plan, canEdit, reload }: TabProps) {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="font-medium">{stay.title}</h3>
+                    <StageBadge stage={stageOf(plan.stages, stay, stay.check_in ? localDayKey(stay.check_in) : null)} />
                     {stay.place && <p className="text-sm text-slate-500">{stay.place.address ?? stay.place.name}</p>}
                   </div>
                   {formatCost(stay.cost, stay.currency) && (
@@ -105,11 +110,13 @@ function StayForm({
   tripId,
   stay,
   defaultDate,
+  stages,
   onDone,
 }: {
   tripId: string
   stay?: Stay
   defaultDate: string | null
+  stages: Stage[]
   onDone: (saved: boolean) => Promise<void>
 }) {
   const [title, setTitle] = useState(stay?.title ?? '')
@@ -118,6 +125,17 @@ function StayForm({
     stay ? toDateTimeInput(stay.check_in) : defaultDate ? `${defaultDate}T15:00` : '',
   )
   const [checkOut, setCheckOut] = useState(toDateTimeInput(stay?.check_out ?? null))
+  const [stageId, setStageId] = useState(stay?.stage_id ?? null)
+
+  function chooseStage(id: string | null) {
+    setStageId(id)
+    const stage = stages.find((s) => s.id === id)
+    // Neue Etappe ohne Daten: Unterkunft über die ganze Etappe vorschlagen.
+    if (stage?.start_day && !checkIn) {
+      setCheckIn(`${stage.start_day}T15:00`)
+      if (!checkOut) setCheckOut(`${addDays(stage.end_day ?? stage.start_day, 1)}T10:00`)
+    }
+  }
   const [bookingRef, setBookingRef] = useState(stay?.booking_ref ?? '')
   const [link, setLink] = useState(stay?.link ?? '')
   const [cost, setCost] = useState(stay?.cost?.toString() ?? '')
@@ -140,6 +158,7 @@ function StayForm({
         tripId,
         stay?.id ?? null,
         {
+          stage_id: stageId,
           title: title.trim() || place?.name || 'Unterkunft',
           check_in: fromDateTimeInput(checkIn),
           check_out: fromDateTimeInput(checkOut),
@@ -182,6 +201,19 @@ function StayForm({
             />
           </Field>
         </div>
+        {stages.length > 0 && (
+          <div className="sm:col-span-2">
+            <StageField
+              id={`${prefix}-stay-stage`}
+              stages={stages}
+              tripStart={defaultDate}
+              stageId={stageId}
+              day={checkIn ? checkIn.slice(0, 10) : null}
+              onStage={chooseStage}
+              onDay={(day) => setCheckIn(`${day}T${checkIn.slice(11) || '15:00'}`)}
+            />
+          </div>
+        )}
         <Field label="Check-in" htmlFor={`${prefix}-stay-in`}>
           <Input
             id={`${prefix}-stay-in`}

@@ -7,6 +7,7 @@ function stay(id: string, checkIn: string | null, checkOut: string | null): Stay
   return {
     id,
     trip_id: 't',
+    stage_id: null,
     title: `Unterkunft ${id}`,
     check_in: checkIn ? fromDateTimeInput(checkIn) : null,
     check_out: checkOut ? fromDateTimeInput(checkOut) : null,
@@ -23,6 +24,7 @@ function transfer(id: string, departAt: string | null): Transfer {
   return {
     id,
     trip_id: 't',
+    stage_id: null,
     title: null,
     mode: 'train',
     depart_at: departAt ? fromDateTimeInput(departAt) : null,
@@ -37,6 +39,7 @@ function activity(id: string, date: string | null, start: string | null): Activi
   return {
     id,
     trip_id: 't',
+    stage_id: null,
     title: `Aktivität ${id}`,
     status: 'planned',
     date,
@@ -53,7 +56,7 @@ describe('buildTimeline', () => {
   it('zeigt alle Reisetage, auch leere', () => {
     const t = buildTimeline(
       { start_date: '2027-05-01', end_date: '2027-05-03' },
-      { stays: [], transfers: [], activities: [] },
+      { stages: [], stays: [], transfers: [], activities: [] },
     )
     expect(t.days.map((d) => d.key)).toEqual(['2027-05-01', '2027-05-02', '2027-05-03'])
     expect(t.days.every((d) => d.entries.length === 0)).toBe(true)
@@ -63,6 +66,7 @@ describe('buildTimeline', () => {
     const t = buildTimeline(
       { start_date: '2027-05-01', end_date: '2027-05-02' },
       {
+        stages: [],
         stays: [stay('a', '2027-05-01T15:00', '2027-05-02T10:00')],
         transfers: [transfer('x', '2027-05-02T12:30')],
         activities: [activity('m', '2027-05-01', '09:00:00'), activity('n', '2027-05-01', null)],
@@ -75,7 +79,7 @@ describe('buildTimeline', () => {
   it('kennt die Unterkunft für jede Nacht', () => {
     const t = buildTimeline(
       { start_date: '2027-05-01', end_date: '2027-05-03' },
-      { stays: [stay('a', '2027-05-01T15:00', '2027-05-03T10:00')], transfers: [], activities: [] },
+      { stages: [], stays: [stay('a', '2027-05-01T15:00', '2027-05-03T10:00')], transfers: [], activities: [] },
     )
     expect(t.days.map((d) => d.night?.id ?? null)).toEqual(['a', 'a', null])
   })
@@ -83,7 +87,12 @@ describe('buildTimeline', () => {
   it('sammelt Einträge ohne Datum separat', () => {
     const t = buildTimeline(
       { start_date: null, end_date: null },
-      { stays: [stay('a', null, null)], transfers: [transfer('x', null)], activities: [activity('m', null, null)] },
+      {
+        stages: [],
+        stays: [stay('a', null, null)],
+        transfers: [transfer('x', null)],
+        activities: [activity('m', null, null)],
+      },
     )
     expect(t.days).toEqual([])
     expect(t.undated.map((e) => e.kind).sort()).toEqual(['activity', 'checkin', 'transfer'])
@@ -92,7 +101,7 @@ describe('buildTimeline', () => {
   it('zeigt Einträge außerhalb des Reisezeitraums trotzdem', () => {
     const t = buildTimeline(
       { start_date: '2027-05-02', end_date: '2027-05-02' },
-      { stays: [], transfers: [transfer('x', '2027-05-01T08:00')], activities: [] },
+      { stages: [], stays: [], transfers: [transfer('x', '2027-05-01T08:00')], activities: [] },
     )
     expect(t.days.map((d) => d.key)).toEqual(['2027-05-01', '2027-05-02'])
   })

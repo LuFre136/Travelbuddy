@@ -1,8 +1,10 @@
 import { formatDay } from '../../lib/datetime'
 import { transferModeLabels, transferTitle } from '../../lib/plan'
+import { stageDayLabel, stageForDay } from '../../lib/stages'
 import { buildTimeline, type TimelineEntry } from '../../lib/timeline'
 import { ActivityStatusPill } from './ActivitiesTab'
 import { EmptyState, type TabProps } from './shared'
+import { StagesSection } from './StagesSection'
 
 const kindLabels: Record<TimelineEntry['kind'], string> = {
   checkin: 'Check-in',
@@ -60,37 +62,54 @@ function EntryRow({ entry }: { entry: TimelineEntry }) {
   )
 }
 
-export function PlanTab({ trip, plan }: TabProps) {
+export function PlanTab(props: TabProps) {
+  const { trip, plan } = props
   const timeline = buildTimeline(trip, plan)
-
-  if (timeline.days.length === 0 && timeline.undated.length === 0) {
-    return (
-      <EmptyState>
-        Noch nichts geplant. Trage Unterkünfte, Transfers oder Aktivitäten ein, dann erscheinen sie hier Tag für Tag.
-      </EmptyState>
-    )
-  }
+  const stageOfDay = timeline.days.map((day) => stageForDay(plan.stages, day.key))
 
   return (
     <div className="space-y-6">
-      {timeline.days.map((day, index) => (
-        <section key={day.key} className="space-y-1">
-          <h3 className="flex flex-wrap items-baseline gap-x-3 font-semibold">
-            <span>Tag {index + 1}</span>
-            <span className="text-sm font-normal text-slate-500">{formatDay(day.key)}</span>
-          </h3>
-          {day.entries.length > 0 ? (
-            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-              {day.entries.map((entry) => (
-                <EntryRow key={entry.id} entry={entry} />
-              ))}
-            </ul>
-          ) : (
-            <p className="py-2 text-sm text-slate-500">Nichts geplant.</p>
-          )}
-          {day.night && <p className="text-sm text-slate-500">Übernachtung: {day.night.title}</p>}
-        </section>
-      ))}
+      <StagesSection {...props} />
+      {timeline.days.length === 0 && timeline.undated.length === 0 && (
+        <EmptyState>
+          Noch nichts geplant. Trage Unterkünfte, Transfers oder Aktivitäten ein, dann erscheinen sie hier Tag für Tag.
+        </EmptyState>
+      )}
+      {timeline.days.map((day, index) => {
+        const stage = stageOfDay[index]
+        const stageStarts = stage && stage.id !== stageOfDay[index - 1]?.id
+        return (
+          <section
+            key={day.key}
+            className={`space-y-1 ${stage ? 'border-l-4 pl-3' : ''}`}
+            style={stage ? { borderColor: stage.color } : undefined}
+          >
+            {stageStarts && (
+              <p
+                className="inline-flex items-center gap-2 rounded-full px-3 py-0.5 text-sm font-medium text-white"
+                style={{ background: stage.color }}
+              >
+                {stage.name}
+                <span className="text-xs font-normal opacity-90">{stageDayLabel(trip.start_date, stage)}</span>
+              </p>
+            )}
+            <h3 className="flex flex-wrap items-baseline gap-x-3 font-semibold">
+              <span>Tag {index + 1}</span>
+              <span className="text-sm font-normal text-slate-500">{formatDay(day.key)}</span>
+            </h3>
+            {day.entries.length > 0 ? (
+              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                {day.entries.map((entry) => (
+                  <EntryRow key={entry.id} entry={entry} />
+                ))}
+              </ul>
+            ) : (
+              <p className="py-2 text-sm text-slate-500">Nichts geplant.</p>
+            )}
+            {day.night && <p className="text-sm text-slate-500">Übernachtung: {day.night.title}</p>}
+          </section>
+        )
+      })}
       {timeline.undated.length > 0 && (
         <section className="space-y-1">
           <h3 className="font-semibold">Noch ohne Datum</h3>

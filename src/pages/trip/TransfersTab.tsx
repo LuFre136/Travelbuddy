@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { PlacePicker } from '../../components/PlacePicker'
+import { StageField } from '../../components/StageField'
 import {
   Button,
   Card,
@@ -11,19 +12,21 @@ import {
   Textarea,
   TextButton,
 } from '../../components/ui'
-import { formatDay, formatTime, fromDateTimeInput, toDateTimeInput } from '../../lib/datetime'
+import { formatDay, formatTime, fromDateTimeInput, localDayKey, toDateTimeInput } from '../../lib/datetime'
 
 import {
   deleteRow,
   saveTransfer,
   transferModeLabels,
   transferTitle,
+  type Stage,
   type Transfer,
   type TransferMode,
   type WaypointDraft,
 } from '../../lib/plan'
 import { emptyToNull, formatDateTime } from '../../lib/format'
-import { DeleteButton, EmptyState, type TabProps } from './shared'
+import { DeleteButton, EmptyState, StageBadge, type TabProps } from './shared'
+import { stageOf } from '../../lib/stages'
 
 export function TransfersTab({ trip, plan, canEdit, reload }: TabProps) {
   const [editing, setEditing] = useState<Transfer | 'new' | null>(null)
@@ -35,13 +38,21 @@ export function TransfersTab({ trip, plan, canEdit, reload }: TabProps) {
   return (
     <div className="space-y-4">
       {canEdit && editing === null && <Button onClick={() => setEditing('new')}>Transfer hinzufügen</Button>}
-      {editing === 'new' && <TransferForm tripId={trip.id} defaultDate={trip.start_date} onDone={done} />}
+      {editing === 'new' && (
+        <TransferForm tripId={trip.id} defaultDate={trip.start_date} stages={plan.stages} onDone={done} />
+      )}
       {plan.transfers.length === 0 && editing === null && <EmptyState>Noch keine Transfers eingetragen.</EmptyState>}
       <ul className="space-y-3">
         {plan.transfers.map((transfer) =>
           editing !== 'new' && editing?.id === transfer.id ? (
             <li key={transfer.id}>
-              <TransferForm tripId={trip.id} transfer={transfer} defaultDate={trip.start_date} onDone={done} />
+              <TransferForm
+                tripId={trip.id}
+                transfer={transfer}
+                defaultDate={trip.start_date}
+                stages={plan.stages}
+                onDone={done}
+              />
             </li>
           ) : (
             <li key={transfer.id}>
@@ -49,6 +60,13 @@ export function TransfersTab({ trip, plan, canEdit, reload }: TabProps) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="font-medium">{transferTitle(transfer)}</h3>
+                    <StageBadge
+                      stage={stageOf(
+                        plan.stages,
+                        transfer,
+                        transfer.depart_at ? localDayKey(transfer.depart_at) : null,
+                      )}
+                    />
                     <p className="text-sm text-slate-500">
                       {[
                         transferModeLabels[transfer.mode],
@@ -122,11 +140,13 @@ function TransferForm({
   tripId,
   transfer,
   defaultDate,
+  stages,
   onDone,
 }: {
   tripId: string
   transfer?: Transfer
   defaultDate: string | null
+  stages: Stage[]
   onDone: (saved: boolean) => Promise<void>
 }) {
   const [title, setTitle] = useState(transfer?.title ?? '')
@@ -135,6 +155,7 @@ function TransferForm({
     transfer ? toDateTimeInput(transfer.depart_at) : defaultDate ? `${defaultDate}T09:00` : '',
   )
   const [arriveAt, setArriveAt] = useState(toDateTimeInput(transfer?.arrive_at ?? null))
+  const [stageId, setStageId] = useState(transfer?.stage_id ?? null)
   const [bookingRef, setBookingRef] = useState(transfer?.booking_ref ?? '')
   const [notes, setNotes] = useState(transfer?.notes ?? '')
   const [waypoints, setWaypoints] = useState<WaypointRow[]>(
@@ -177,6 +198,7 @@ function TransferForm({
         tripId,
         transfer?.id ?? null,
         {
+          stage_id: stageId,
           title: emptyToNull(title),
           mode,
           depart_at: fromDateTimeInput(departAt),
@@ -214,6 +236,19 @@ function TransferForm({
             placeholder="z. B. IC 523"
           />
         </Field>
+        {stages.length > 0 && (
+          <div className="sm:col-span-2">
+            <StageField
+              id={`${prefix}-tr-stage`}
+              stages={stages}
+              tripStart={defaultDate}
+              stageId={stageId}
+              day={departAt ? departAt.slice(0, 10) : null}
+              onStage={setStageId}
+              onDay={(day) => setDepartAt(`${day}T${departAt.slice(11) || '09:00'}`)}
+            />
+          </div>
+        )}
         <Field label="Abfahrt" htmlFor={`${prefix}-tr-depart`}>
           <Input
             id={`${prefix}-tr-depart`}
