@@ -12,10 +12,12 @@ import { MapTab } from './trip/MapTab'
 import { MembersTab, type Member } from './trip/MembersTab'
 import { PlanTab } from './trip/PlanTab'
 import { StaysTab } from './trip/StaysTab'
+import { SuggestionsTab } from './trip/SuggestionsTab'
 import { TransfersTab } from './trip/TransfersTab'
 
 const tabs = [
   { key: 'plan', label: 'Plan' },
+  { key: 'suggestions', label: 'Vorschläge' },
   { key: 'stays', label: 'Unterkünfte' },
   { key: 'transfers', label: 'Transfers' },
   { key: 'activities', label: 'Aktivitäten' },
@@ -121,13 +123,15 @@ export function TripPage() {
         </div>
       </nav>
 
-      {!canEdit && tab !== 'members' && (
+      {!canEdit && tab !== 'members' && tab !== 'suggestions' && (
         <p className="text-sm text-slate-500">
-          Als Travelbuddy siehst du den Plan. Ändern können ihn Host und Travelguides. Vorschläge kommen bald.
+          Als Travelbuddy siehst du den Plan. Ändern können ihn Host und Travelguides. Eigene Ideen kannst du unter
+          „Vorschläge“ einbringen.
         </p>
       )}
 
       {tab === 'plan' && <PlanTab {...tabProps} />}
+      {tab === 'suggestions' && <SuggestionsTab {...tabProps} members={members} userId={session?.user.id} />}
       {tab === 'stays' && <StaysTab {...tabProps} />}
       {tab === 'transfers' && <TransfersTab {...tabProps} />}
       {tab === 'activities' && <ActivitiesTab {...tabProps} />}

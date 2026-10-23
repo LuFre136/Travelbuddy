@@ -242,3 +242,26 @@ select tests.expect_error($$insert into public.activities (trip_id, stage_id, ti
 -- Etappe löschen lässt Einträge stehen und entfernt nur die Zuordnung
 delete from public.stages where id = 'cccccccc-0000-0000-0000-000000000001';
 select tests.expect((select stage_id is null from public.transfers where id = 'eeeeeeee-0000-0000-0000-000000000002'), 'Zuordnung entfernt, Transfer bleibt');
+
+-- accept_suggestion: Buddy schlägt vor, darf nicht übernehmen; Guide übernimmt als Aktivität
+reset role;
+select tests.login('33333333-3333-3333-3333-333333333333');
+set role authenticated;
+insert into public.suggestions (id, trip_id, place_id, kind, title, note, link)
+  values ('cccccccc-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001',
+          'bbbbbbbb-0000-0000-0000-000000000001', 'drinks', 'Rooftop Bar', 'Sonnenuntergang', 'https://example.org');
+select tests.expect_error($$select public.accept_suggestion('cccccccc-0000-0000-0000-000000000002', 'activity')$$,
+  'Buddy übernimmt per RPC');
+reset role;
+select tests.login('22222222-2222-2222-2222-222222222222');
+set role authenticated;
+select public.accept_suggestion('cccccccc-0000-0000-0000-000000000002', 'activity', null, '2027-05-02', 'optional');
+select tests.expect(
+  (select a.title = 'Rooftop Bar' and a.date = '2027-05-02' and a.status = 'optional'
+          and a.notes = E'Sonnenuntergang\nhttps://example.org'
+   from public.suggestions s join public.activities a on a.id = s.accepted_activity_id
+   where s.id = 'cccccccc-0000-0000-0000-000000000002' and s.status = 'accepted'),
+  'Vorschlag wird Aktivität');
+select tests.expect_error($$select public.accept_suggestion('cccccccc-0000-0000-0000-000000000002', 'stay')$$,
+  'Zweimal übernehmen');
+reset role;
