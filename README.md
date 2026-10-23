@@ -8,7 +8,7 @@ Umsetzungsplan: https://claude.ai/artifact/2XRgeuEtL9hMcKzDWVDhw4
 
 ## Stand
 
-Meilensteine M0 bis M2:
+Meilensteine M0 bis M3:
 
 - React + Vite + TypeScript + Tailwind, als PWA installierbar
 - Anmeldung per Magic Link oder Google (Supabase Auth)
@@ -17,6 +17,8 @@ Meilensteine M0 bis M2:
 - Komplettes Datenbankschema mit Row Level Security für alle Rollen (`supabase/migrations`)
 - Reiseplan: Unterkünfte, Transfers mit sortierbaren Wegpunkten, Aktivitäten (optional/eingeplant) und eine
   Tagesansicht mit Übernachtungen; Ortssuche über Photon (OpenStreetMap)
+- Karte (MapLibre mit OpenFreeMap-Kacheln, ohne API-Schlüssel): Unterkünfte, Aktivitäten und Wegpunkte als Punkte,
+  Transfers als Linien, Filter nach Tag und Art
 
 ## Rollen
 

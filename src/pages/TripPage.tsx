@@ -7,6 +7,7 @@ import { loadPlan, type TripPlan } from '../lib/plan'
 import { requireSupabase } from '../lib/supabase'
 import { canEditPlan, roleLabels, type Trip } from '../lib/types'
 import { ActivitiesTab } from './trip/ActivitiesTab'
+import { MapTab } from './trip/MapTab'
 import { MembersTab, type Member } from './trip/MembersTab'
 import { PlanTab } from './trip/PlanTab'
 import { StaysTab } from './trip/StaysTab'
@@ -17,6 +18,7 @@ const tabs = [
   { key: 'stays', label: 'Unterkünfte' },
   { key: 'transfers', label: 'Transfers' },
   { key: 'activities', label: 'Aktivitäten' },
+  { key: 'map', label: 'Karte' },
   { key: 'members', label: 'Mitreisende' },
 ] as const
 
@@ -111,6 +113,7 @@ export function TripPage() {
       {tab === 'stays' && <StaysTab {...tabProps} />}
       {tab === 'transfers' && <TransfersTab {...tabProps} />}
       {tab === 'activities' && <ActivitiesTab {...tabProps} />}
+      {tab === 'map' && <MapTab {...tabProps} />}
       {tab === 'members' && (
         <MembersTab tripId={trip.id} members={members} myUserId={session?.user.id} myRole={myRole} />
       )}
