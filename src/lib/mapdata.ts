@@ -1,4 +1,5 @@
 import { localDayKey } from './datetime'
+import { stageOf, tripDayNumber } from './stages'
 import {
   transferModeLabels,
   transferTitle,
@@ -21,6 +22,10 @@ export interface MapPoint {
   /** Erster und letzter Tag, an dem der Eintrag relevant ist (null = ohne Datum). */
   dayFrom: string | null
   dayTo: string | null
+  /** Farbe der Etappe; null = Farbe nach Art. */
+  color: string | null
+  /** Reisetag (1 = Anreisetag), wird im Pin angezeigt. */
+  dayNumber: number | null
 }
 
 /** Ein Abschnitt zwischen zwei Wegpunkten eines Transfers. */
@@ -28,6 +33,7 @@ export interface MapLine {
   id: string
   title: string
   mode: TransferMode
+  color: string | null
   coordinates: [number, number][]
 }
 
@@ -54,7 +60,7 @@ function visibleOnDay(day: string | 'all', from: string | null, to: string | nul
   return from <= day && day <= (to ?? from)
 }
 
-export function buildMapData(plan: TripPlan, filter: MapFilter): MapData {
+export function buildMapData(plan: TripPlan, filter: MapFilter, tripStart: string | null = null): MapData {
   const points: MapPoint[] = []
   const lines: MapLine[] = []
   const unplaced: MapData['unplaced'] = []
@@ -79,6 +85,8 @@ export function buildMapData(plan: TripPlan, filter: MapFilter): MapData {
         status: null,
         dayFrom: from,
         dayTo: to,
+        color: stageOf(plan.stages, stay, from)?.color ?? null,
+        dayNumber: tripDayNumber(tripStart, from),
       })
     }
   }
@@ -101,6 +109,8 @@ export function buildMapData(plan: TripPlan, filter: MapFilter): MapData {
         status: activity.status,
         dayFrom: activity.date,
         dayTo: activity.date,
+        color: stageOf(plan.stages, activity, activity.date)?.color ?? null,
+        dayNumber: tripDayNumber(tripStart, activity.date),
       })
     }
   }
@@ -109,6 +119,7 @@ export function buildMapData(plan: TripPlan, filter: MapFilter): MapData {
     for (const transfer of plan.transfers) {
       const departDay = transfer.depart_at ? localDayKey(transfer.depart_at) : null
       const title = transferTitle(transfer)
+      const color = stageOf(plan.stages, transfer, departDay)?.color ?? null
       // Ohne eigenes Datum gilt für einen Wegpunkt der Tag der Abfahrt.
       const stops = transfer.waypoints.map((w) => ({ w, day: w.day ?? departDay }))
       stops.forEach(({ w, day }, i) => {
@@ -128,6 +139,8 @@ export function buildMapData(plan: TripPlan, filter: MapFilter): MapData {
           status: null,
           dayFrom: day,
           dayTo: day,
+          color,
+          dayNumber: tripDayNumber(tripStart, day),
         })
       })
       for (let i = 1; i < stops.length; i++) {
@@ -140,6 +153,7 @@ export function buildMapData(plan: TripPlan, filter: MapFilter): MapData {
           id: `segment-${to.w.id}`,
           title: `${transferModeLabels[mode]}: ${from.w.place.name} → ${to.w.place.name}`,
           mode,
+          color,
           coordinates: [
             [from.w.place.lng, from.w.place.lat],
             [to.w.place.lng, to.w.place.lat],
@@ -171,7 +185,15 @@ export function toGeoJson(data: MapData) {
         type: 'Feature' as const,
         id: p.id,
         geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
-        properties: { id: p.id, kind: p.kind, title: p.title, subtitle: p.subtitle ?? '', status: p.status ?? '' },
+        properties: {
+          id: p.id,
+          kind: p.kind,
+          title: p.title,
+          subtitle: p.subtitle ?? '',
+          status: p.status ?? '',
+          label: p.dayNumber !== null ? String(p.dayNumber) : '',
+          ...(p.color ? { color: p.color } : {}),
+        },
       })),
     },
     lines: {
@@ -180,7 +202,7 @@ export function toGeoJson(data: MapData) {
         type: 'Feature' as const,
         id: l.id,
         geometry: { type: 'LineString' as const, coordinates: l.coordinates },
-        properties: { id: l.id, title: l.title, mode: l.mode },
+        properties: { id: l.id, title: l.title, mode: l.mode, ...(l.color ? { color: l.color } : {}) },
       })),
     },
   }

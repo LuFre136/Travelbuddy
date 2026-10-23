@@ -7,10 +7,12 @@ const place = (name: string, lat: number | null, lng: number | null) => ({ id: n
 const all = new Set<MapKind>(['stay', 'activity', 'waypoint'])
 
 const plan: TripPlan = {
+  stages: [],
   stays: [
     {
       id: 's1',
       trip_id: 't',
+      stage_id: null,
       title: 'Hostel Alfama',
       check_in: fromDateTimeInput('2027-05-01T15:00'),
       check_out: fromDateTimeInput('2027-05-03T10:00'),
@@ -26,6 +28,7 @@ const plan: TripPlan = {
     {
       id: 'a1',
       trip_id: 't',
+      stage_id: null,
       title: 'Time Out Market',
       status: 'planned',
       date: '2027-05-01',
@@ -39,6 +42,7 @@ const plan: TripPlan = {
     {
       id: 'a2',
       trip_id: 't',
+      stage_id: null,
       title: 'Omas Café',
       status: 'optional',
       date: null,
@@ -54,6 +58,7 @@ const plan: TripPlan = {
     {
       id: 'x',
       trip_id: 't',
+      stage_id: null,
       title: null,
       mode: 'train',
       depart_at: fromDateTimeInput('2027-05-03T11:30'),
@@ -145,5 +150,26 @@ describe('buildMapData', () => {
     const geo = toGeoJson(buildMapData(plan, { day: 'all', kinds: all }))
     expect(geo.points.features[0].geometry.coordinates).toEqual([-9.13, 38.71])
     expect(geo.lines.features[0].geometry.type).toBe('LineString')
+  })
+
+  it('färbt nach Etappe und nummeriert die Reisetage', () => {
+    const withStages = {
+      ...plan,
+      stages: [
+        { id: 'st', trip_id: 't', name: 'Lissabon', color: '#c2410c', start_day: '2027-05-01', end_day: '2027-05-02' },
+      ],
+    }
+    const data = buildMapData(withStages, { day: 'all', kinds: all }, '2027-05-01')
+    const stay = data.points.find((p) => p.id === 'stay-s1')!
+    expect(stay.color).toBe('#c2410c')
+    expect(stay.dayNumber).toBe(1)
+    const porto = data.points.find((p) => p.id === 'waypoint-w3')!
+    expect(porto.color).toBeNull()
+    expect(porto.dayNumber).toBe(4)
+    const geo = toGeoJson(data)
+    expect(geo.points.features.find((f) => f.id === 'stay-s1')!.properties).toMatchObject({
+      label: '1',
+      color: '#c2410c',
+    })
   })
 })

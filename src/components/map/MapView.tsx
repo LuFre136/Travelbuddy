@@ -1,5 +1,10 @@
 import { useEffect, useRef } from 'react'
-import maplibregl, { type FilterSpecification, type GeoJSONSource, type Map as MapLibreMap } from 'maplibre-gl'
+import maplibregl, {
+  type ExpressionSpecification,
+  type FilterSpecification,
+  type GeoJSONSource,
+  type Map as MapLibreMap,
+} from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { toGeoJson, type MapData } from '../../lib/mapdata'
 import { kindColors } from './colors'
@@ -48,7 +53,11 @@ export default function MapView({ data }: { data: MapData }) {
       instance.addSource('points', { type: 'geojson', data: geo.points })
       // Flüge und Fähren gestrichelt, Landwege durchgezogen.
       const overWater: FilterSpecification = ['in', ['get', 'mode'], ['literal', ['flight', 'ferry']]]
-      const linePaint = { 'line-color': kindColors.waypoint, 'line-width': 3, 'line-opacity': 0.7 }
+      const linePaint = {
+        'line-color': ['coalesce', ['get', 'color'], kindColors.waypoint] as ExpressionSpecification,
+        'line-width': 3,
+        'line-opacity': 0.7,
+      }
       instance.addLayer({
         id: 'transfer-lines',
         type: 'line',
@@ -65,31 +74,45 @@ export default function MapView({ data }: { data: MapData }) {
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: { ...linePaint, 'line-dasharray': [2, 1.5] },
       })
+      // Farbe der Etappe, sonst nach Art des Eintrags.
+      const color: ExpressionSpecification = [
+        'coalesce',
+        ['get', 'color'],
+        ['match', ['get', 'kind'], 'stay', kindColors.stay, 'activity', kindColors.activity, kindColors.waypoint],
+      ]
+      const optional: ExpressionSpecification = ['==', ['get', 'status'], 'optional']
+      // Unterkünfte über Aktivitäten über Wegpunkten, falls sie am selben Ort liegen.
+      const sortKey: ExpressionSpecification = ['match', ['get', 'kind'], 'stay', 3, 'activity', 2, 1]
       instance.addLayer({
         id: 'place-points',
         type: 'circle',
         source: 'points',
-        // Unterkünfte über Aktivitäten über Wegpunkten, falls sie am selben Ort liegen.
-        layout: { 'circle-sort-key': ['match', ['get', 'kind'], 'stay', 3, 'activity', 2, 1] },
+        layout: { 'circle-sort-key': sortKey },
         paint: {
-          'circle-radius': ['match', ['get', 'kind'], 'waypoint', 6, 8],
-          'circle-color': [
-            'case',
-            ['==', ['get', 'status'], 'optional'],
-            '#ffffff',
-            ['match', ['get', 'kind'], 'stay', kindColors.stay, 'activity', kindColors.activity, kindColors.waypoint],
+          // Größer, wenn eine Tageszahl hineinpasst; Unterkünfte am größten.
+          'circle-radius': [
+            '+',
+            ['match', ['get', 'kind'], 'stay', 3, 'activity', 1, 0],
+            ['case', ['==', ['get', 'label'], ''], 6, 9],
           ],
-          'circle-stroke-width': 2.5,
-          'circle-stroke-color': [
-            'match',
-            ['get', 'kind'],
-            'activity',
-            kindColors.activity,
-            'stay',
-            '#ffffff',
-            '#ffffff',
-          ],
+          'circle-color': ['case', optional, '#ffffff', color],
+          'circle-stroke-width': ['case', optional, 2.5, ['==', ['get', 'kind'], 'stay'], 3, 2],
+          'circle-stroke-color': ['case', optional, color, '#ffffff'],
         },
+      })
+      instance.addLayer({
+        id: 'place-labels',
+        type: 'symbol',
+        source: 'points',
+        layout: {
+          'symbol-sort-key': sortKey,
+          'text-field': ['get', 'label'],
+          'text-font': ['Noto Sans Bold'],
+          'text-size': 11,
+          'text-allow-overlap': true,
+          'text-ignore-placement': true,
+        },
+        paint: { 'text-color': ['case', optional, color, '#ffffff'] },
       })
 
       instance.on('click', 'place-points', (event) => {

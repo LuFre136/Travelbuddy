@@ -28,9 +28,19 @@ export interface Place {
   address: string | null
 }
 
+export interface Stage {
+  id: string
+  trip_id: string
+  name: string
+  color: string
+  start_day: string | null
+  end_day: string | null
+}
+
 export interface Stay {
   id: string
   trip_id: string
+  stage_id: string | null
   title: string
   check_in: string | null
   check_out: string | null
@@ -56,6 +66,7 @@ export interface Waypoint {
 export interface Transfer {
   id: string
   trip_id: string
+  stage_id: string | null
   title: string | null
   mode: TransferMode
   depart_at: string | null
@@ -68,6 +79,7 @@ export interface Transfer {
 export interface Activity {
   id: string
   trip_id: string
+  stage_id: string | null
   title: string
   status: ActivityStatus
   date: string | null
@@ -80,6 +92,7 @@ export interface Activity {
 }
 
 export interface TripPlan {
+  stages: Stage[]
   stays: Stay[]
   transfers: Transfer[]
   activities: Activity[]
@@ -89,18 +102,24 @@ const placeColumns = 'id, name, lat, lng, address'
 
 export async function loadPlan(tripId: string): Promise<TripPlan> {
   const db = requireSupabase()
-  const [stays, transfers, activities] = await Promise.all([
+  const [stages, stays, transfers, activities] = await Promise.all([
+    db
+      .from('stages')
+      .select('id, trip_id, name, color, start_day, end_day')
+      .eq('trip_id', tripId)
+      .order('start_day', { nullsFirst: false })
+      .order('created_at'),
     db
       .from('stays')
       .select(
-        `id, trip_id, title, check_in, check_out, booking_ref, link, cost, currency, notes, place:places(${placeColumns})`,
+        `id, trip_id, stage_id, title, check_in, check_out, booking_ref, link, cost, currency, notes, place:places(${placeColumns})`,
       )
       .eq('trip_id', tripId)
       .order('check_in', { nullsFirst: false }),
     db
       .from('transfers')
       .select(
-        `id, trip_id, title, mode, depart_at, arrive_at, booking_ref, notes,
+        `id, trip_id, stage_id, title, mode, depart_at, arrive_at, booking_ref, notes,
          waypoints:transfer_waypoints(id, position, day, time, segment_mode, stop_note, place:places(${placeColumns}))`,
       )
       .eq('trip_id', tripId)
@@ -108,13 +127,13 @@ export async function loadPlan(tripId: string): Promise<TripPlan> {
     db
       .from('activities')
       .select(
-        `id, trip_id, title, status, date, start_time, end_time, cost, currency, notes, place:places(${placeColumns})`,
+        `id, trip_id, stage_id, title, status, date, start_time, end_time, cost, currency, notes, place:places(${placeColumns})`,
       )
       .eq('trip_id', tripId)
       .order('date', { nullsFirst: false })
       .order('start_time', { nullsFirst: false }),
   ])
-  const error = stays.error ?? transfers.error ?? activities.error
+  const error = stages.error ?? stays.error ?? transfers.error ?? activities.error
   if (error) throw new Error(error.message)
 
   const sortedTransfers = (transfers.data as unknown as Transfer[]).map((t) => ({
@@ -122,6 +141,7 @@ export async function loadPlan(tripId: string): Promise<TripPlan> {
     waypoints: [...t.waypoints].sort((a, b) => a.position - b.position),
   }))
   return {
+    stages: stages.data as Stage[],
     stays: stays.data as unknown as Stay[],
     transfers: sortedTransfers,
     activities: activities.data as unknown as Activity[],
@@ -152,6 +172,7 @@ function throwIf(error: { message: string } | null) {
 }
 
 export interface StayDraft {
+  stage_id: string | null
   title: string
   check_in: string | null
   check_out: string | null
@@ -171,6 +192,7 @@ export async function saveStay(tripId: string, id: string | null, draft: StayDra
 }
 
 export interface ActivityDraft {
+  stage_id: string | null
   title: string
   status: ActivityStatus
   date: string | null
@@ -195,6 +217,7 @@ export async function saveActivity(
 }
 
 export interface TransferDraft {
+  stage_id: string | null
   title: string | null
   mode: TransferMode
   depart_at: string | null
@@ -232,7 +255,21 @@ export async function saveTransfer(
   throwIf(error)
 }
 
-export async function deleteRow(table: 'stays' | 'transfers' | 'activities', id: string) {
+export interface StageDraft {
+  name: string
+  color: string
+  start_day: string | null
+  end_day: string | null
+}
+
+export async function saveStage(tripId: string, id: string | null, draft: StageDraft) {
+  const row = { ...draft, trip_id: tripId }
+  const db = requireSupabase()
+  const { error } = id ? await db.from('stages').update(row).eq('id', id) : await db.from('stages').insert(row)
+  throwIf(error)
+}
+
+export async function deleteRow(table: 'stages' | 'stays' | 'transfers' | 'activities', id: string) {
   const { error } = await requireSupabase().from(table).delete().eq('id', id)
   throwIf(error)
 }

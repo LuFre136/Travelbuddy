@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useState } from 'react'
 import { kindColors } from '../../components/map/colors'
 import { formatDay } from '../../lib/datetime'
 import { buildMapData, type MapKind } from '../../lib/mapdata'
+import { stageDayLabel } from '../../lib/stages'
 import { buildTimeline } from '../../lib/timeline'
 import { Select } from '../../components/ui'
 import { EmptyState, type TabProps } from './shared'
@@ -19,7 +20,7 @@ export function MapTab({ trip, plan }: TabProps) {
   const [day, setDay] = useState<string>('all')
   const [kinds, setKinds] = useState<Set<MapKind>>(() => new Set(['stay', 'activity', 'waypoint']))
   const days = useMemo(() => buildTimeline(trip, plan).days.map((d) => d.key), [trip, plan])
-  const data = useMemo(() => buildMapData(plan, { day, kinds }), [plan, day, kinds])
+  const data = useMemo(() => buildMapData(plan, { day, kinds }, trip.start_date), [plan, day, kinds, trip.start_date])
 
   function toggle(kind: MapKind) {
     setKinds((current) => {
@@ -69,9 +70,21 @@ export function MapTab({ trip, plan }: TabProps) {
         <MapView data={data} />
       </Suspense>
 
+      {plan.stages.length > 0 && (
+        <ul aria-label="Etappen" className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {plan.stages.map((stage) => (
+            <li key={stage.id} className="flex items-center gap-2">
+              <span className="size-3 rounded-full" style={{ background: stage.color }} />
+              {stage.name}
+              <span className="text-slate-500">{stageDayLabel(trip.start_date, stage)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <p className="text-xs text-slate-500">
-        Ausgefüllter Punkt: eingeplant, heller Punkt: optional. Transfers sind als Luftlinie zwischen den Wegpunkten
-        gezeichnet.
+        Pins haben die Farbe ihrer Etappe, die Zahl ist der Reisetag. Ausgefüllter Punkt: eingeplant, heller Punkt:
+        optional. Transfers sind als Luftlinie zwischen den Wegpunkten gezeichnet.
       </p>
 
       {data.points.length === 0 && data.lines.length === 0 && (

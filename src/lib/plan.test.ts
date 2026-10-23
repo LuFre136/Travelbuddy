@@ -7,6 +7,7 @@ function transfer(title: string | null, stops: string[]): Transfer {
   return {
     id: 't',
     trip_id: 'trip',
+    stage_id: null,
     title,
     mode: 'train',
     depart_at: null,

@@ -32,7 +32,7 @@ export function TripPage() {
   const tab: TabKey = tabs.some((t) => t.key === params.get('tab')) ? (params.get('tab') as TabKey) : 'plan'
   const [trip, setTrip] = useState<Trip | null>(null)
   const [members, setMembers] = useState<Member[]>([])
-  const [plan, setPlan] = useState<TripPlan>({ stays: [], transfers: [], activities: [] })
+  const [plan, setPlan] = useState<TripPlan>({ stages: [], stays: [], transfers: [], activities: [] })
   const [error, setError] = useState<string | null>(null)
   const [editingTrip, setEditingTrip] = useState(false)
 
