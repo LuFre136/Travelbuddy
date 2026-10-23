@@ -1,5 +1,12 @@
 import { localDayKey } from './datetime'
-import { transferModeLabels, transferTitle, type ActivityStatus, type Place, type TripPlan } from './plan'
+import {
+  transferModeLabels,
+  transferTitle,
+  type ActivityStatus,
+  type Place,
+  type TransferMode,
+  type TripPlan,
+} from './plan'
 
 export type MapKind = 'stay' | 'activity' | 'waypoint'
 
@@ -16,11 +23,12 @@ export interface MapPoint {
   dayTo: string | null
 }
 
+/** Ein Abschnitt zwischen zwei Wegpunkten eines Transfers. */
 export interface MapLine {
   id: string
   title: string
+  mode: TransferMode
   coordinates: [number, number][]
-  day: string | null
 }
 
 export interface MapFilter {
@@ -99,33 +107,43 @@ export function buildMapData(plan: TripPlan, filter: MapFilter): MapData {
 
   if (filter.kinds.has('waypoint')) {
     for (const transfer of plan.transfers) {
-      const day = transfer.depart_at ? localDayKey(transfer.depart_at) : null
-      if (!visibleOnDay(filter.day, day, day)) continue
+      const departDay = transfer.depart_at ? localDayKey(transfer.depart_at) : null
       const title = transferTitle(transfer)
-      const positioned = transfer.waypoints.filter((w) => hasPosition(w.place))
-      for (const w of transfer.waypoints) {
+      // Ohne eigenes Datum gilt für einen Wegpunkt der Tag der Abfahrt.
+      const stops = transfer.waypoints.map((w) => ({ w, day: w.day ?? departDay }))
+      stops.forEach(({ w, day }, i) => {
+        if (!visibleOnDay(filter.day, day, day)) return
         if (!hasPosition(w.place)) {
           unplaced.push({ id: `waypoint-${w.id}`, title: w.place.name })
-          continue
+          return
         }
+        const mode = i === 0 ? transfer.mode : (w.segment_mode ?? transfer.mode)
         points.push({
           id: `waypoint-${w.id}`,
           kind: 'waypoint',
           title: w.place.name,
-          subtitle: `${transferModeLabels[transfer.mode]}: ${title}`,
-          lat: w.place.lat!,
-          lng: w.place.lng!,
+          subtitle: `${transferModeLabels[mode]}: ${title}`,
+          lat: w.place.lat,
+          lng: w.place.lng,
           status: null,
           dayFrom: day,
           dayTo: day,
         })
-      }
-      if (positioned.length >= 2) {
+      })
+      for (let i = 1; i < stops.length; i++) {
+        const from = stops[i - 1]
+        const to = stops[i]
+        if (!hasPosition(from.w.place) || !hasPosition(to.w.place)) continue
+        if (!visibleOnDay(filter.day, from.day, from.day) && !visibleOnDay(filter.day, to.day, to.day)) continue
+        const mode = to.w.segment_mode ?? transfer.mode
         lines.push({
-          id: `transfer-${transfer.id}`,
-          title,
-          coordinates: positioned.map((w) => [w.place.lng!, w.place.lat!]),
-          day,
+          id: `segment-${to.w.id}`,
+          title: `${transferModeLabels[mode]}: ${from.w.place.name} → ${to.w.place.name}`,
+          mode,
+          coordinates: [
+            [from.w.place.lng, from.w.place.lat],
+            [to.w.place.lng, to.w.place.lat],
+          ],
         })
       }
     }
@@ -162,7 +180,7 @@ export function toGeoJson(data: MapData) {
         type: 'Feature' as const,
         id: l.id,
         geometry: { type: 'LineString' as const, coordinates: l.coordinates },
-        properties: { id: l.id, title: l.title },
+        properties: { id: l.id, title: l.title, mode: l.mode },
       })),
     },
   }

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import maplibregl, { type GeoJSONSource, type Map as MapLibreMap } from 'maplibre-gl'
+import maplibregl, { type FilterSpecification, type GeoJSONSource, type Map as MapLibreMap } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { toGeoJson, type MapData } from '../../lib/mapdata'
 import { kindColors } from './colors'
@@ -46,12 +46,24 @@ export default function MapView({ data }: { data: MapData }) {
       const geo = toGeoJson(latest.current)
       instance.addSource('lines', { type: 'geojson', data: geo.lines })
       instance.addSource('points', { type: 'geojson', data: geo.points })
+      // Flüge und Fähren gestrichelt, Landwege durchgezogen.
+      const overWater: FilterSpecification = ['in', ['get', 'mode'], ['literal', ['flight', 'ferry']]]
+      const linePaint = { 'line-color': kindColors.waypoint, 'line-width': 3, 'line-opacity': 0.7 }
       instance.addLayer({
         id: 'transfer-lines',
         type: 'line',
         source: 'lines',
+        filter: ['!', overWater],
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': kindColors.waypoint, 'line-width': 3, 'line-opacity': 0.7, 'line-dasharray': [2, 1.5] },
+        paint: linePaint,
+      })
+      instance.addLayer({
+        id: 'transfer-lines-dashed',
+        type: 'line',
+        source: 'lines',
+        filter: overWater,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { ...linePaint, 'line-dasharray': [2, 1.5] },
       })
       instance.addLayer({
         id: 'place-points',
@@ -87,6 +99,16 @@ export default function MapView({ data }: { data: MapData }) {
         new maplibregl.Popup({ offset: 12 })
           .setLngLat(feature.geometry.coordinates as [number, number])
           .setDOMContent(popupContent(props.title, props.subtitle))
+          .addTo(instance)
+      })
+      instance.on('click', ['transfer-lines', 'transfer-lines-dashed'], (event) => {
+        // Punkte haben Vorrang, wenn beide getroffen werden.
+        if (instance.queryRenderedFeatures(event.point, { layers: ['place-points'] }).length > 0) return
+        const feature = event.features?.[0]
+        if (!feature) return
+        new maplibregl.Popup({ offset: 6 })
+          .setLngLat(event.lngLat)
+          .setDOMContent(popupContent((feature.properties as { title: string }).title, ''))
           .addTo(instance)
       })
       instance.on('mouseenter', 'place-points', () => (instance.getCanvas().style.cursor = 'pointer'))

@@ -20,3 +20,20 @@ html {
     color-scheme: dark;
   }
 }
+
+/* react-day-picker an die App-Farben anpassen */
+.rdp-root.tb-calendar {
+  --rdp-accent-color: var(--color-brand-600);
+  --rdp-accent-background-color: var(--color-brand-100);
+  --rdp-day-width: 40px;
+  --rdp-day-height: 40px;
+  --rdp-day_button-width: 38px;
+  --rdp-day_button-height: 38px;
+  width: fit-content;
+  max-width: 100%;
+}
+@media (prefers-color-scheme: dark) {
+  .rdp-root.tb-calendar {
+    --rdp-accent-background-color: color-mix(in srgb, var(--color-brand-600) 35%, transparent);
+  }
+}

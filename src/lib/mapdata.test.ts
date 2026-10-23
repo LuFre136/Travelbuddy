@@ -61,16 +61,40 @@ const plan: TripPlan = {
       booking_ref: null,
       notes: null,
       waypoints: [
-        { id: 'w1', position: 1, planned_time: null, stop_note: null, place: place('Lissabon', 38.71, -9.12) },
-        { id: 'w2', position: 2, planned_time: null, stop_note: null, place: place('Coimbra', 40.21, -8.43) },
-        { id: 'w3', position: 3, planned_time: null, stop_note: null, place: place('Porto', 41.15, -8.61) },
+        {
+          id: 'w1',
+          position: 1,
+          day: null,
+          time: null,
+          segment_mode: null,
+          stop_note: null,
+          place: place('Lissabon', 38.71, -9.12),
+        },
+        {
+          id: 'w2',
+          position: 2,
+          day: null,
+          time: null,
+          segment_mode: null,
+          stop_note: null,
+          place: place('Coimbra', 40.21, -8.43),
+        },
+        {
+          id: 'w3',
+          position: 3,
+          day: '2027-05-04',
+          time: null,
+          segment_mode: 'bus',
+          stop_note: null,
+          place: place('Porto', 41.15, -8.61),
+        },
       ],
     },
   ],
 }
 
 describe('buildMapData', () => {
-  it('zeigt alle Orte mit Position und eine Linie pro Transfer', () => {
+  it('zeigt alle Orte mit Position und eine Linie pro Abschnitt', () => {
     const data = buildMapData(plan, { day: 'all', kinds: all })
     expect(data.points.map((p) => p.id)).toEqual([
       'stay-s1',
@@ -79,13 +103,14 @@ describe('buildMapData', () => {
       'waypoint-w2',
       'waypoint-w3',
     ])
-    expect(data.lines).toHaveLength(1)
-    expect(data.lines[0].coordinates).toEqual([
-      [-9.12, 38.71],
+    expect(data.lines.map((l) => [l.mode, l.title])).toEqual([
+      ['train', 'Zug: Lissabon → Coimbra'],
+      ['bus', 'Bus: Coimbra → Porto'],
+    ])
+    expect(data.lines[1].coordinates).toEqual([
       [-8.43, 40.21],
       [-8.61, 41.15],
     ])
-    expect(data.lines[0].title).toBe('Lissabon → Porto')
   })
 
   it('listet Orte ohne Position separat', () => {
@@ -96,8 +121,13 @@ describe('buildMapData', () => {
     const day2 = buildMapData(plan, { day: '2027-05-02', kinds: all })
     expect(day2.points.map((p) => p.id)).toEqual(['stay-s1'])
     const day3 = buildMapData(plan, { day: '2027-05-03', kinds: all })
-    expect(day3.points.map((p) => p.kind)).toEqual(['stay', 'waypoint', 'waypoint', 'waypoint'])
+    // Porto hat ein eigenes Datum (4. Mai), der Abschnitt dorthin bleibt aber sichtbar.
+    expect(day3.points.map((p) => p.id)).toEqual(['stay-s1', 'waypoint-w1', 'waypoint-w2'])
+    expect(day3.lines).toHaveLength(2)
     expect(day3.unplaced).toEqual([])
+    const day4 = buildMapData(plan, { day: '2027-05-04', kinds: all })
+    expect(day4.points.map((p) => p.id)).toContain('waypoint-w3')
+    expect(day4.lines.map((l) => l.id)).toEqual(['segment-w3'])
   })
 
   it('filtert nach Art', () => {

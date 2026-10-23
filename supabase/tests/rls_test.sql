@@ -186,6 +186,18 @@ select public.save_transfer(
   '[{"place_id": "bbbbbbbb-0000-0000-0000-000000000003"}, {"place_id": "bbbbbbbb-0000-0000-0000-000000000002"}]'
 );
 select tests.expect((select mode from public.transfers where id = 'eeeeeeee-0000-0000-0000-000000000002') = 'bus', 'Transfer aktualisiert');
+
+-- Datum, optionale Uhrzeit und Verkehrsmittel pro Abschnitt
+select public.save_transfer(
+  '{"id": "eeeeeeee-0000-0000-0000-000000000003", "trip_id": "aaaaaaaa-0000-0000-0000-000000000001", "mode": "train"}',
+  '[{"place_id": "bbbbbbbb-0000-0000-0000-000000000002", "day": "2027-05-03", "time": "11:30", "segment_mode": "car"},
+    {"place_id": "bbbbbbbb-0000-0000-0000-000000000003", "day": "2027-05-03", "segment_mode": "bus"}]'
+);
+select tests.expect(
+  (select array_agg(coalesce(segment_mode::text, '-') || '/' || coalesce(time::text, '-') order by position)
+   from public.transfer_waypoints where transfer_id = 'eeeeeeee-0000-0000-0000-000000000003')
+  = array['-/11:30:00', 'bus/-'],
+  'Erster Wegpunkt ohne Abschnitt, zweiter mit Bus und ohne Uhrzeit');
 select tests.expect(
   (select array_agg(place_id order by position) from public.transfer_waypoints where transfer_id = 'eeeeeeee-0000-0000-0000-000000000002')
   = array['bbbbbbbb-0000-0000-0000-000000000003', 'bbbbbbbb-0000-0000-0000-000000000002']::uuid[],

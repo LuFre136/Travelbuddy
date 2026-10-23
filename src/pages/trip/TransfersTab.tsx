@@ -11,7 +11,7 @@ import {
   Textarea,
   TextButton,
 } from '../../components/ui'
-import { formatTime, fromDateTimeInput, toDateTimeInput } from '../../lib/datetime'
+import { formatDay, formatTime, fromDateTimeInput, toDateTimeInput } from '../../lib/datetime'
 
 import {
   deleteRow,
@@ -62,14 +62,28 @@ export function TransfersTab({ trip, plan, canEdit, reload }: TabProps) {
                 </div>
                 {transfer.waypoints.length > 0 && (
                   <ol className="space-y-1 border-l-2 border-brand-600 pl-4 text-sm">
-                    {transfer.waypoints.map((w) => (
-                      <li key={w.id} className="relative">
-                        <span className="absolute top-1.5 -left-[21px] size-2.5 rounded-full border-2 border-brand-600 bg-white dark:bg-slate-900" />
-                        <span className="font-medium">{w.place.name}</span>
-                        {w.planned_time && <span className="text-slate-500"> · {formatTime(w.planned_time)}</span>}
-                        {w.stop_note && <span className="block text-xs text-slate-500">{w.stop_note}</span>}
-                      </li>
-                    ))}
+                    {transfer.waypoints.map((w, i) => {
+                      const previousDay = i > 0 ? transfer.waypoints[i - 1].day : null
+                      const showDay = w.day && w.day !== previousDay
+                      return (
+                        <li key={w.id} className="relative">
+                          {i > 0 && w.segment_mode && w.segment_mode !== transfer.mode && (
+                            <span className="block text-xs text-slate-500">
+                              mit {transferModeLabels[w.segment_mode]}
+                            </span>
+                          )}
+                          <span className="absolute bottom-1.5 -left-[21px] size-2.5 rounded-full border-2 border-brand-600 bg-white dark:bg-slate-900" />
+                          <span className="font-medium">{w.place.name}</span>
+                          {(showDay || w.time) && (
+                            <span className="text-slate-500">
+                              {' · '}
+                              {[showDay && formatDay(w.day!), formatTime(w.time)].filter(Boolean).join(', ')}
+                            </span>
+                          )}
+                          {w.stop_note && <span className="block text-xs text-slate-500">{w.stop_note}</span>}
+                        </li>
+                      )
+                    })}
                   </ol>
                 )}
                 {transfer.booking_ref && (
@@ -127,7 +141,9 @@ function TransferForm({
     transfer?.waypoints.map((w) => ({
       key: w.id,
       place: w.place,
-      planned_time: w.planned_time,
+      day: w.day,
+      time: w.time,
+      segment_mode: w.segment_mode,
       stop_note: w.stop_note,
     })) ?? [],
   )
@@ -249,13 +265,52 @@ function TransferForm({
                   </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    id={`${prefix}-wp-${row.key}-time`}
-                    type="datetime-local"
-                    aria-label="Geplante Zeit"
-                    value={toDateTimeInput(row.planned_time)}
-                    onChange={(e) => updateRow(index, { planned_time: fromDateTimeInput(e.target.value) })}
-                  />
+                  {index > 0 && (
+                    <Select
+                      id={`${prefix}-wp-${row.key}-mode`}
+                      aria-label="Verkehrsmittel bis hierher"
+                      value={row.segment_mode ?? ''}
+                      onChange={(e) =>
+                        updateRow(index, { segment_mode: (e.target.value || null) as TransferMode | null })
+                      }
+                    >
+                      <option value="">Anreise: wie Transfer ({transferModeLabels[mode]})</option>
+                      {Object.entries(transferModeLabels).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          Anreise: {label}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                  <div className="flex gap-2">
+                    <Input
+                      id={`${prefix}-wp-${row.key}-day`}
+                      type="date"
+                      aria-label="Datum"
+                      className="min-w-0 flex-1"
+                      value={row.day ?? ''}
+                      onChange={(e) => updateRow(index, { day: e.target.value || null })}
+                    />
+                    {row.time !== null ? (
+                      <div className="flex w-36 shrink-0 items-center gap-1">
+                        <Input
+                          id={`${prefix}-wp-${row.key}-time`}
+                          type="time"
+                          aria-label="Uhrzeit"
+                          value={formatTime(row.time) ?? ''}
+                          // Leere Uhrzeit wird beim Speichern zu „ohne Zeit“.
+                          onChange={(e) => updateRow(index, { time: e.target.value })}
+                        />
+                        <TextButton aria-label="Uhrzeit entfernen" onClick={() => updateRow(index, { time: null })}>
+                          ✕
+                        </TextButton>
+                      </div>
+                    ) : (
+                      <TextButton className="shrink-0 text-sm" onClick={() => updateRow(index, { time: '' })}>
+                        + Uhrzeit
+                      </TextButton>
+                    )}
+                  </div>
                   <Input
                     id={`${prefix}-wp-${row.key}-note`}
                     aria-label="Notiz zum Stopp"
@@ -274,7 +329,15 @@ function TransferForm({
               if (place)
                 setWaypoints((rows) => [
                   ...rows,
-                  { key: crypto.randomUUID(), place, planned_time: null, stop_note: null },
+                  {
+                    key: crypto.randomUUID(),
+                    place,
+                    // Datum vom vorherigen Wegpunkt übernehmen, sonst vom Abfahrtstag.
+                    day: rows.at(-1)?.day ?? (departAt ? departAt.slice(0, 10) : null),
+                    time: null,
+                    segment_mode: null,
+                    stop_note: null,
+                  },
                 ])
             }}
             placeholder="Wegpunkt hinzufügen: Bahnhof, Flughafen, Stadt …"

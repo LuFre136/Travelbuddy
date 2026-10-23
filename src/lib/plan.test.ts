@@ -16,7 +16,9 @@ function transfer(title: string | null, stops: string[]): Transfer {
     waypoints: stops.map((name, i) => ({
       id: name,
       position: i + 1,
-      planned_time: null,
+      day: null,
+      time: null,
+      segment_mode: null,
       stop_note: null,
       place: place(name),
     })),

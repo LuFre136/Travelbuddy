@@ -39,7 +39,8 @@ Die Regeln sind in der Datenbank erzwungen (RLS), nicht nur in der Oberfläche.
 1. Auf [supabase.com](https://supabase.com) kostenlos ein Projekt anlegen, Region **Frankfurt (eu-central-1)**.
 2. Schema einspielen, entweder
    - mit der CLI: `npx supabase login`, `npx supabase link --project-ref <ref>`, `npx supabase db push`, oder
-   - im Dashboard unter **SQL Editor** den Inhalt von `supabase/migrations/20261022180000_init.sql` ausführen.
+   - im Dashboard unter **SQL Editor** den Inhalt jeder Datei in `supabase/migrations/` ausführen, der Reihe nach
+     (Dateinamen beginnen mit Datum und Uhrzeit). Bei späteren Updates nur die neuen Dateien ausführen.
 3. **Authentication → URL Configuration:** Site URL auf die spätere App-Adresse setzen (z. B.
    `https://travelbuddy.onrender.com`, die genaue Adresse zeigt Render nach dem ersten Deploy) und unter Redirect
    URLs `http://localhost:5173/**` sowie `https://travelbuddy.onrender.com/**` eintragen.
