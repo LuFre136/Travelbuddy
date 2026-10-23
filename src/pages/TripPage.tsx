@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/context'
-import { ErrorText } from '../components/ui'
+import { ErrorText, TextButton } from '../components/ui'
 import { formatDateRange } from '../lib/format'
 import { loadPlan, type TripPlan } from '../lib/plan'
 import { requireSupabase } from '../lib/supabase'
 import { canEditPlan, roleLabels, type Trip } from '../lib/types'
 import { ActivitiesTab } from './trip/ActivitiesTab'
+import { EditTripForm } from './trip/EditTripForm'
 import { MapTab } from './trip/MapTab'
 import { MembersTab, type Member } from './trip/MembersTab'
 import { PlanTab } from './trip/PlanTab'
@@ -33,6 +34,7 @@ export function TripPage() {
   const [members, setMembers] = useState<Member[]>([])
   const [plan, setPlan] = useState<TripPlan>({ stays: [], transfers: [], activities: [] })
   const [error, setError] = useState<string | null>(null)
+  const [editingTrip, setEditingTrip] = useState(false)
 
   const reload = useCallback(async () => {
     if (!tripId) return
@@ -80,8 +82,24 @@ export function TripPage() {
         <p className="text-sm text-slate-500">
           {formatDateRange(trip.start_date, trip.end_date)}
           {myRole && ` · du bist ${roleLabels[myRole]}`}
+          {myRole === 'host' && !editingTrip && (
+            <>
+              {' · '}
+              <TextButton onClick={() => setEditingTrip(true)}>Reise bearbeiten</TextButton>
+            </>
+          )}
         </p>
       </div>
+
+      {editingTrip && (
+        <EditTripForm
+          trip={trip}
+          onDone={async (saved) => {
+            setEditingTrip(false)
+            if (saved) await reload()
+          }}
+        />
+      )}
 
       <nav aria-label="Bereiche der Reise" className="-mx-4 overflow-x-auto px-4">
         <div className="flex min-w-max gap-1 border-b border-slate-200 dark:border-slate-800">

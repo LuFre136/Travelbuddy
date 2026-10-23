@@ -43,3 +43,16 @@ export function formatDay(dayKey: string): string {
   const [y, m, d] = dayKey.split('-').map(Number)
   return dayFormat.format(new Date(y, m - 1, d))
 }
+
+/** "YYYY-MM-DD" → lokales Date um Mitternacht. */
+export function dayKeyToDate(dayKey: string | null): Date | undefined {
+  if (!dayKey) return undefined
+  const [y, m, d] = dayKey.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+/** Lokales Date → "YYYY-MM-DD". */
+export function dateToDayKey(date: Date | undefined): string | null {
+  if (!date) return null
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}

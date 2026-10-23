@@ -5,6 +5,7 @@ import { formatDateRange } from '../lib/format'
 import { roleLabels, type Trip, type TripRole } from '../lib/types'
 import { useAuth } from '../auth/context'
 import { Button, ErrorText, Input } from '../components/ui'
+import { DateRangePicker, type DayRange } from '../components/DateRangePicker'
 
 type TripRow = Trip & { trip_members: { role: TripRole }[] }
 
@@ -14,8 +15,7 @@ export function TripsPage() {
   const [trips, setTrips] = useState<TripRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [title, setTitle] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const [range, setRange] = useState<DayRange>({ start: null, end: null })
   const [busy, setBusy] = useState(false)
 
   const userId = session?.user.id
@@ -44,7 +44,7 @@ export function TripsPage() {
     const id = crypto.randomUUID()
     const { error } = await requireSupabase()
       .from('trips')
-      .insert({ id, title: title.trim(), start_date: startDate || null, end_date: endDate || null })
+      .insert({ id, title: title.trim(), start_date: range.start, end_date: range.end })
     setBusy(false)
     if (error) {
       setError(error.message)
@@ -99,23 +99,9 @@ export function TripsPage() {
               placeholder="z. B. Portugal 2027"
             />
           </div>
-          <div className="space-y-1">
-            <label htmlFor="trip-start" className="text-sm font-medium">
-              Von
-            </label>
-            <Input id="trip-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="trip-end" className="text-sm font-medium">
-              Bis
-            </label>
-            <Input
-              id="trip-end"
-              type="date"
-              min={startDate || undefined}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
+          <div className="space-y-1 sm:col-span-2">
+            <span className="text-sm font-medium">Zeitraum</span>
+            <DateRangePicker value={range} onChange={setRange} />
           </div>
           <div className="sm:col-span-2">
             <Button type="submit" disabled={busy || !title.trim()}>

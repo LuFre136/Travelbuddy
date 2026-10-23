@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/context'
+import { getRemember, setRemember } from '../lib/authStorage'
 import { requireSupabase } from '../lib/supabase'
 import { Button, ErrorText, Input, SecondaryButton } from '../components/ui'
 
@@ -18,6 +19,12 @@ export function LoginPage() {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [remember, setRememberState] = useState(getRemember)
+
+  function toggleRemember(value: boolean) {
+    setRememberState(value)
+    setRemember(value)
+  }
 
   if (session) return <Navigate to={next} replace />
 
@@ -126,6 +133,16 @@ export function LoginPage() {
       <SecondaryButton type="button" onClick={signInWithGoogle} className="w-full">
         Mit Google anmelden
       </SecondaryButton>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={remember}
+          onChange={(e) => toggleRemember(e.target.checked)}
+          className="size-4 accent-brand-600"
+        />
+        Angemeldet bleiben
+      </label>
 
       <ErrorText>{error}</ErrorText>
     </div>

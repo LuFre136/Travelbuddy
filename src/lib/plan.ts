@@ -45,7 +45,10 @@ export interface Stay {
 export interface Waypoint {
   id: string
   position: number
-  planned_time: string | null
+  day: string | null
+  time: string | null
+  /** Verkehrsmittel vom vorherigen Wegpunkt hierher; null = wie der Transfer. */
+  segment_mode: TransferMode | null
   stop_note: string | null
   place: Place
 }
@@ -98,7 +101,7 @@ export async function loadPlan(tripId: string): Promise<TripPlan> {
       .from('transfers')
       .select(
         `id, trip_id, title, mode, depart_at, arrive_at, booking_ref, notes,
-         waypoints:transfer_waypoints(id, position, planned_time, stop_note, place:places(${placeColumns}))`,
+         waypoints:transfer_waypoints(id, position, day, time, segment_mode, stop_note, place:places(${placeColumns}))`,
       )
       .eq('trip_id', tripId)
       .order('depart_at', { nullsFirst: false }),
@@ -202,7 +205,9 @@ export interface TransferDraft {
 
 export interface WaypointDraft {
   place: PlaceInput | Place
-  planned_time: string | null
+  day: string | null
+  time: string | null
+  segment_mode: TransferMode | null
   stop_note: string | null
 }
 
@@ -218,7 +223,9 @@ export async function saveTransfer(
     p_transfer: { ...draft, id: id ?? crypto.randomUUID(), trip_id: tripId },
     p_waypoints: waypoints.map((w, i) => ({
       place_id: placeIds[i],
-      planned_time: w.planned_time,
+      day: w.day,
+      time: w.time || null,
+      segment_mode: i === 0 ? null : w.segment_mode,
       stop_note: w.stop_note,
     })),
   })
